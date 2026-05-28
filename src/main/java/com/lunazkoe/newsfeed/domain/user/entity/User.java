@@ -23,6 +23,7 @@ import org.hibernate.annotations.SQLRestriction;
 public class User extends BaseSoftDeleteEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "user_id")
     private UUID id;
 
     @Column(nullable = false, unique = true)
@@ -40,6 +41,7 @@ public class User extends BaseSoftDeleteEntity {
         this.password = password;
     }
 
+    // == 생성 메서드 ==
     public static User create(String email, String nickname, String password) {
         return new User(email, nickname, password);
     }
