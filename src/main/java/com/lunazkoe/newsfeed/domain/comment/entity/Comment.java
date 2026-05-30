@@ -43,7 +43,7 @@ public class Comment extends BaseSoftDeleteEntity {
     private String content;
 
     @Column(nullable = false)
-    private long likeCount;
+    private long likeCount = 0L;
 
     private Comment(Article article, User user, String content) {
         this.article = article;
