@@ -74,7 +74,7 @@ public class Article extends BaseSoftDeleteEntity {
     }
 
     public void decreaseCommentCount() {
-        if (this.commentCount < 0) {
+        if (this.commentCount > 0) {
             commentCount--;
         }
     }
