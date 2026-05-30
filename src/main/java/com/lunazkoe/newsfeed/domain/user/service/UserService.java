@@ -1,6 +1,7 @@
 package com.lunazkoe.newsfeed.domain.user.service;
 
 import com.lunazkoe.newsfeed.domain.user.dto.UserDto;
+import com.lunazkoe.newsfeed.domain.user.dto.UserLoginRequest;
 import com.lunazkoe.newsfeed.domain.user.dto.UserRegisterRequest;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
@@ -37,7 +38,20 @@ public class UserService {
         User newUser = User.create(request.email(), request.nickname(), encodedPassword);
         userRepository.save(newUser);
 
-        log.info("회원가입 요청 성공. UserId: {}", newUser.getId());
+        log.info("사용자 회원가입 요청 성공. UserId: {}", newUser.getId());
         return UserDto.from(newUser);
+    }
+
+    /**
+     * 로그인
+     */
+    public UserDto login(UserLoginRequest request) {
+        // 이메일 검증 & 비밀번호 검증
+        User foundUser = userRepository.findByEmail(request.email())
+            .filter(user -> passwordEncoder.matches(request.password(), user.getEncodedPassword()))
+            .orElseThrow(() -> new UserException(UserErrorCode.EMAIL_OR_PASSWORD_INVALID));
+
+        log.info("사용자 로그인 성공. UserId: {}", foundUser.getId());
+        return UserDto.from(foundUser);
     }
 }

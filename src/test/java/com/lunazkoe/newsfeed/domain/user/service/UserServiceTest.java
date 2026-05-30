@@ -9,12 +9,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.lunazkoe.newsfeed.domain.user.dto.UserDto;
+import com.lunazkoe.newsfeed.domain.user.dto.UserLoginRequest;
 import com.lunazkoe.newsfeed.domain.user.dto.UserRegisterRequest;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,43 +37,118 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    @Test
-    @DisplayName("회원가입 성공: 정상적인 요청일 경우 유저가 저장되고 DTO를 반환한다.")
-    void register_success() {
-        // given
-        UserRegisterRequest request = new UserRegisterRequest("test@email.com", "test", "password");
-        String encodedPassword = "encodedPassword";
+    @Nested
+    @DisplayName("회원가입 테스트")
+    class RegisterTest {
 
-        given(userRepository.existsByEmail(request.email())).willReturn(false);
-        given(passwordEncoder.encode(request.password())).willReturn(encodedPassword);
+        @Test
+        @DisplayName("회원가입 성공: 정상적인 요청일 경우 유저가 저장되고 DTO를 반환한다.")
+        void register_success() {
+            // given
+            UserRegisterRequest request = new UserRegisterRequest("test@email.com", "test", "password");
+            String encodedPassword = "encodedPassword";
 
-        // when
-        UserDto result = userService.register(request);
+            given(userRepository.existsByEmail(request.email())).willReturn(false);
+            given(passwordEncoder.encode(request.password())).willReturn(encodedPassword);
 
-        // then
-        assertThat(result.email()).isEqualTo(request.email());
-        assertThat(result.nickname()).isEqualTo(request.nickname());
+            // when
+            UserDto result = userService.register(request);
 
-        verify(userRepository).existsByEmail(request.email());
-        verify(passwordEncoder).encode(request.password());
-        verify(userRepository).save(any(User.class));
+            // then
+            assertThat(result.email()).isEqualTo(request.email());
+            assertThat(result.nickname()).isEqualTo(request.nickname());
+
+            verify(userRepository).existsByEmail(request.email());
+            verify(passwordEncoder).encode(request.password());
+            verify(userRepository).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("회원가입 실패: 이미 존재하는 이메일의 경우 예외가 발생한다.")
+        void register_fail_duplicateEmail() {
+            // given
+            UserRegisterRequest request = new UserRegisterRequest("test@email.com", "test", "password");
+            given(userRepository.existsByEmail(request.email())).willReturn(true);
+
+            // when & then
+            UserException exception = assertThrows(UserException.class, () -> {
+                userService.register(request);
+            });
+            assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.DUPLICATE_EMAIL);
+
+            verify(userRepository).existsByEmail(request.email());
+            verify(passwordEncoder, never()).encode(anyString());
+            verify(userRepository, never()).save(any(User.class));
+        }
     }
 
-    @Test
-    @DisplayName("회원가입 실패: 이미 존재하는 이메일의 경우 예외가 발생한다.")
-    void register_fail_duplicateEmail() {
-        // given
-        UserRegisterRequest request = new UserRegisterRequest("test@email.com", "test", "password");
-        given(userRepository.existsByEmail(request.email())).willReturn(true);
+    @Nested
+    @DisplayName("로그인 테스트")
+    class LoginTest {
 
-        // when & then
-        UserException exception = assertThrows(UserException.class, () -> {
-            userService.register(request);
-        });
-        assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.DUPLICATE_EMAIL);
+        @Test
+        @DisplayName("성공: 이메일과 비밀번호가 일치하면 DTO를 반환한다.")
+        void login_success() {
+            // given
+            String rawPassword = "password123!";
+            String encodedPassword = "encodedPassword!123!";
+            UserLoginRequest request = new UserLoginRequest("test@email.com", rawPassword);
+            User savedUser = User.create(request.email(), "test", encodedPassword);
 
-        verify(userRepository).existsByEmail(request.email());
-        verify(passwordEncoder, never()).encode(anyString());
-        verify(userRepository, never()).save(any(User.class));
+            given(userRepository.findByEmail(request.email())).willReturn(Optional.of(savedUser));
+            given(passwordEncoder.matches(request.password(), savedUser.getEncodedPassword())).willReturn(true);
+
+            // when
+            UserDto result = userService.login(request);
+
+            // then
+            assertThat(result.email()).isEqualTo(request.email());
+            assertThat(result.nickname()).isEqualTo(savedUser.getNickname());
+
+            verify(userRepository).findByEmail(request.email());
+            verify(passwordEncoder).matches(rawPassword, encodedPassword);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 이메일로 로그인 시도 시 예외가 발생한다")
+        void login_fail_userNotFound() {
+            // Given
+            UserLoginRequest request = new UserLoginRequest("notfound@email.com", "password123!");
+
+            given(userRepository.findByEmail(request.email())).willReturn(Optional.empty());
+
+            // When & Then
+            UserException exception = assertThrows(UserException.class, () -> {
+                userService.login(request);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.EMAIL_OR_PASSWORD_INVALID);
+
+            verify(userRepository).findByEmail(request.email());
+            verify(passwordEncoder, never()).matches(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("실패: 비밀번호가 일치하지 않으면 예외가 발생한다")
+        void login_fail_passwordMismatch() {
+            // Given
+            String rawPassword = "wrongPassword!";
+            String encodedPassword = "encodedPassword123!";
+            UserLoginRequest request = new UserLoginRequest("test@email.com", rawPassword);
+            User savedUser = User.create(request.email(), "테스터", encodedPassword);
+
+            given(userRepository.findByEmail(request.email())).willReturn(Optional.of(savedUser));
+            given(passwordEncoder.matches(rawPassword, savedUser.getEncodedPassword())).willReturn(false);
+
+            // When & Then
+            UserException exception = assertThrows(UserException.class, () -> {
+                userService.login(request);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.EMAIL_OR_PASSWORD_INVALID);
+
+            verify(userRepository).findByEmail(request.email());
+            verify(passwordEncoder).matches(rawPassword, savedUser.getEncodedPassword());
+        }
     }
 }
