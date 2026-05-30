@@ -72,7 +72,7 @@ public class UserService {
         // 닉네임 변경
         foundUser.updateNickname(request.nickname());
 
-        log.info("사용자 닉네임 변경 성공. UserId: {}", foundUser.getId());
+        log.info("사용자 정보 수정 성공. UserId: {}", foundUser.getId());
         return UserDto.from(foundUser);
     }
 
