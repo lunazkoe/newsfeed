@@ -3,10 +3,12 @@ package com.lunazkoe.newsfeed.domain.user.service;
 import com.lunazkoe.newsfeed.domain.user.dto.UserDto;
 import com.lunazkoe.newsfeed.domain.user.dto.UserLoginRequest;
 import com.lunazkoe.newsfeed.domain.user.dto.UserRegisterRequest;
+import com.lunazkoe.newsfeed.domain.user.dto.UserUpdateRequest;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -53,5 +55,33 @@ public class UserService {
 
         log.info("사용자 로그인 성공. UserId: {}", foundUser.getId());
         return UserDto.from(foundUser);
+    }
+
+    /**
+     * TODO: 사용자 논리 삭제
+     */
+
+    /**
+     * 사용자 정보 수정
+     */
+    @Transactional
+    public UserDto updateNickname(UUID userId, UserUpdateRequest request) {
+        // 사용자 조회
+        User foundUser = getFoundUserById(userId);
+
+        // 닉네임 변경
+        foundUser.updateNickname(request.nickname());
+
+        log.info("사용자 닉네임 변경 성공. UserId: {}", foundUser.getId());
+        return UserDto.from(foundUser);
+    }
+
+    /**
+     * TODO: 사용자 물리 삭제
+     */
+
+    private User getFoundUserById(UUID userId) {
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
     }
 }

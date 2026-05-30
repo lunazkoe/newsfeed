@@ -3,13 +3,17 @@ package com.lunazkoe.newsfeed.domain.user.controller;
 import com.lunazkoe.newsfeed.domain.user.dto.UserDto;
 import com.lunazkoe.newsfeed.domain.user.dto.UserLoginRequest;
 import com.lunazkoe.newsfeed.domain.user.dto.UserRegisterRequest;
+import com.lunazkoe.newsfeed.domain.user.dto.UserUpdateRequest;
 import com.lunazkoe.newsfeed.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +30,7 @@ public class UserController {
     @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
     @PostMapping()
     public ResponseEntity<UserDto> register(@Valid @RequestBody UserRegisterRequest request) {
-        log.info("[UserController] 회원가입 요청 수신");
+        log.info("사용자 회원가입 요청 수신");
         UserDto response = userService.register(request);
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -38,6 +42,19 @@ public class UserController {
     public ResponseEntity<UserDto> login(@Valid @RequestBody UserLoginRequest request) {
         log.info("사용자 로그인 요청 수신");
         UserDto response = userService.login(request);
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(response);
+    }
+
+    @Operation(summary = "사용자 정보 수정", description = "사용자의 닉네임을 수정합니다.")
+    @PatchMapping("/{userId}")
+    public ResponseEntity<UserDto> updateNickname(
+        @PathVariable UUID userId,
+        @Valid @RequestBody UserUpdateRequest request
+    ) {
+        log.info("사용자 정보 수정 요청 수신");
+        UserDto response = userService.updateNickname(userId, request);
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(response);

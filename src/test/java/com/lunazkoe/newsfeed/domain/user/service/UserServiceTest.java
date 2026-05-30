@@ -11,11 +11,13 @@ import static org.mockito.Mockito.verify;
 import com.lunazkoe.newsfeed.domain.user.dto.UserDto;
 import com.lunazkoe.newsfeed.domain.user.dto.UserLoginRequest;
 import com.lunazkoe.newsfeed.domain.user.dto.UserRegisterRequest;
+import com.lunazkoe.newsfeed.domain.user.dto.UserUpdateRequest;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -149,6 +151,60 @@ class UserServiceTest {
 
             verify(userRepository).findByEmail(request.email());
             verify(passwordEncoder).matches(rawPassword, savedUser.getEncodedPassword());
+        }
+    }
+
+    @Nested
+    @DisplayName("사용자 닉네임 수정(updateNickname) 테스트")
+    class UpdateNicknameTest {
+
+        @Test
+        @DisplayName("성공: 존재하는 사용자의 닉네임을 변경하면 수정된 DTO를 반환한다")
+        void updateNickname_success() {
+            // Given
+            UUID userId = UUID.randomUUID();
+            String originalNickname = "기존닉네임";
+            String newNickname = "새로운닉네임";
+
+            // 테스트용 유저 엔티티 생성
+            User savedUser = User.create("test@email.com", originalNickname, "encodedPassword!");
+            UserUpdateRequest request = new UserUpdateRequest(newNickname);
+
+            // getFoundUserById 내부에서 userRepository.findById를 호출한다고 가정
+            given(userRepository.findById(userId)).willReturn(Optional.of(savedUser));
+
+            // When
+            UserDto result = userService.updateNickname(userId, request);
+
+            // Then
+            assertThat(result.nickname()).isEqualTo(newNickname);
+
+            assertThat(savedUser.getNickname()).isEqualTo(newNickname);
+
+            verify(userRepository).findById(userId);
+
+            // save() 메서드는 호출되지 않아야 함 (JPA 변경 감지 활용)
+            verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자 ID로 닉네임 변경 요청 시 예외가 발생한다")
+        void updateNickname_fail_userNotFound() {
+            // Given
+            UUID invalidUserId = UUID.randomUUID();
+            UserUpdateRequest request = new UserUpdateRequest("새로운닉네임");
+
+            // 유저 조회 시 빈 Optional 반환되도록 설정
+            given(userRepository.findById(invalidUserId)).willReturn(Optional.empty());
+
+            // When & Then
+            UserException exception = assertThrows(UserException.class, () -> {
+                userService.updateNickname(invalidUserId, request);
+            });
+
+            assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+
+            verify(userRepository).findById(invalidUserId);
         }
     }
 }
