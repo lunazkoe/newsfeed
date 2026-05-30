@@ -33,17 +33,17 @@ public class User extends BaseSoftDeleteEntity {
     private String nickname;
 
     @Column(nullable = false)
-    private String password;
+    private String encodedPassword;
 
-    private User(String email, String nickname, String password) {
+    private User(String email, String nickname, String encodedPassword) {
         this.email = email;
         this.nickname = nickname;
-        this.password = password;
+        this.encodedPassword = encodedPassword;
     }
 
     // == 생성 메서드 ==
-    public static User create(String email, String nickname, String password) {
-        return new User(email, nickname, password);
+    public static User create(String email, String nickname, String encodedPassword) {
+        return new User(email, nickname, encodedPassword);
     }
 
     // == 비즈니스 메서드 ==
