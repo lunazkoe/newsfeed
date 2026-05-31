@@ -6,12 +6,17 @@ import com.lunazkoe.newsfeed.domain.article.exception.ArticleException;
 import com.lunazkoe.newsfeed.domain.article.repository.ArticleRepository;
 import com.lunazkoe.newsfeed.domain.comment.dto.CommentDto;
 import com.lunazkoe.newsfeed.domain.comment.dto.CommentRegisterRequest;
+import com.lunazkoe.newsfeed.domain.comment.dto.CommentUpdateRequest;
 import com.lunazkoe.newsfeed.domain.comment.entity.Comment;
+import com.lunazkoe.newsfeed.domain.comment.exception.CommentErrorCode;
+import com.lunazkoe.newsfeed.domain.comment.exception.CommentException;
 import com.lunazkoe.newsfeed.domain.comment.repository.CommentRepository;
+import com.lunazkoe.newsfeed.domain.commentlike.repository.CommentLikeRepository;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +31,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
+    private final CommentLikeRepository commentLikeRepository;
 
     /**
      * 댓글 목록 조회
@@ -59,6 +65,18 @@ public class CommentService {
     /**
      * 댓글 정보 수정
      */
+    @Transactional
+    public CommentDto updateContent(UUID commentId, UUID requestUserId, CommentUpdateRequest request) {
+        Comment foundComment = commentRepository.findWithUserById(commentId)
+            .orElseThrow(() -> new CommentException(CommentErrorCode.COMMENT_NOT_FOUND));
+
+        foundComment.updateContent(request.content());
+
+        boolean likedByMe = commentLikeRepository.existsByCommentIdAndUserIdDirectly(requestUserId, commentId);
+
+        log.info("댓글 정보 수정 완료. CommentId: {}", foundComment.getId());
+        return CommentDto.from(foundComment, likedByMe);
+    }
 
     /**
      * 댓글 물리 삭제

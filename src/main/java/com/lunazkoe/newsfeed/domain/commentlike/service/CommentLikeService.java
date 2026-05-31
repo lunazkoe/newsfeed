@@ -54,7 +54,7 @@ public class CommentLikeService {
         CommentLike newCommentLike = CommentLike.create(foundComment, foundUser);
         commentLikeRepository.save(newCommentLike);
 
-        // 좋아요 수 증가
+        // 댓글 좋아요 수 증가
         foundComment.increaseLikeCount();
 
         // 좋아요 알림 생성
@@ -68,5 +68,24 @@ public class CommentLikeService {
 
         log.info("관심사 댓글 좋아요 요청 성공. CommentId: {}", foundComment.getId());
         return CommentLikeDto.from(newCommentLike);
+    }
+
+    /**
+     * 댓글 좋아요 취소
+     */
+    @Transactional
+    public void cancelLikeComment(UUID commentId, UUID requestUserId) {
+        // 좋아요를 하지 않은 경우
+        Optional<CommentLike> foundCommentLike = commentLikeRepository.findByCommentIdAndUserIdWithComment(commentId, requestUserId);
+        if (foundCommentLike.isEmpty()) {
+            return;
+        }
+
+        commentLikeRepository.delete(foundCommentLike.get());
+
+        // 댓글 좋아요 수 감소
+        foundCommentLike.get().getComment().decreaseLikeCount();
+
+        log.info("댓글 좋아요 취소 성공. CommentId: {}", foundCommentLike.get().getComment().getId());
     }
 }

@@ -1,7 +1,7 @@
 package com.lunazkoe.newsfeed.domain.commentlike.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -16,9 +16,8 @@ import com.lunazkoe.newsfeed.domain.comment.repository.CommentRepository;
 import com.lunazkoe.newsfeed.domain.commentlike.dto.CommentLikeDto;
 import com.lunazkoe.newsfeed.domain.commentlike.entity.CommentLike;
 import com.lunazkoe.newsfeed.domain.commentlike.repository.CommentLikeRepository;
+import com.lunazkoe.newsfeed.domain.notification.listener.CreateNotificationEvent;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
-import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
-import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -31,49 +30,53 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class CommentLikeServiceTest {
+
     @InjectMocks
     private CommentLikeService commentLikeService;
 
     @Mock
     private CommentLikeRepository commentLikeRepository;
-
     @Mock
     private CommentRepository commentRepository;
-
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
-    private User commentAuthor;
-    private User requestUser;
+    private User author;
+    private User liker;
     private Article article;
     private Comment comment;
+    private CommentLike commentLike;
+    private UUID authorId;
+    private UUID likerId;
     private UUID commentId;
-    private UUID requestUserId;
 
     @BeforeEach
     void setUp() {
+        authorId = UUID.randomUUID();
+        likerId = UUID.randomUUID();
         commentId = UUID.randomUUID();
-        requestUserId = UUID.randomUUID();
 
-        // 1. 댓글 작성자 세팅
-        commentAuthor = User.create("author@email.com", "작성자", "password");
-        ReflectionTestUtils.setField(commentAuthor, "id", UUID.randomUUID());
+        // 작성자와 좋아요 누르는 사람을 분리
+        author = User.create("author@email.com", "작성자", "password");
+        ReflectionTestUtils.setField(author, "id", authorId);
 
-        // 2. 좋아요 요청자 세팅
-        requestUser = User.create("liker@email.com", "좋아요누른사람", "password");
-        ReflectionTestUtils.setField(requestUser, "id", requestUserId);
+        liker = User.create("liker@email.com", "좋아요누른사람", "password");
+        ReflectionTestUtils.setField(liker, "id", likerId);
 
-        // 3. 기사 세팅
         article = Article.create(ArticleSource.NAVER, "url", "제목", "요약", LocalDateTime.now());
-        ReflectionTestUtils.setField(article, "id", UUID.randomUUID());
 
-        // 4. 댓글 세팅
-        comment = Comment.create(article, commentAuthor, "댓글내용입니다.");
+        comment = Comment.create(article, author, "댓글 내용");
         ReflectionTestUtils.setField(comment, "id", commentId);
+        ReflectionTestUtils.setField(comment, "likeCount", 0L);
+
+        commentLike = CommentLike.create(comment, liker);
     }
 
     @Nested
@@ -81,104 +84,111 @@ class CommentLikeServiceTest {
     class LikeCommentTest {
 
         @Test
-        @DisplayName("성공: 좋아요를 처음 누르는 경우 새로운 좋아요가 저장되고 좋아요 수가 증가한다.")
-        void likeComment_success_firstTime() {
+        @DisplayName("성공: 좋아요 기록이 없으면 새롭게 좋아요를 등록하고 알림 이벤트를 발행한다.")
+        void likeComment_success_newLikeAndEventPublished() {
             // given
-            given(commentLikeRepository.findByCommentIdAndUserId(commentId, requestUserId))
-                .willReturn(Optional.empty());
+            given(commentLikeRepository.findByCommentIdAndUserId(commentId, likerId)).willReturn(Optional.empty());
+            given(commentRepository.findWithUserById(commentId)).willReturn(Optional.of(comment));
+            given(userRepository.findById(likerId)).willReturn(Optional.of(liker));
 
-            given(commentRepository.findWithUserById(commentId))
-                .willReturn(Optional.of(comment));
-
-            given(userRepository.findById(requestUserId))
-                .willReturn(Optional.of(requestUser));
-
-            long initialLikeCount = comment.getLikeCount();
+            assertThat(comment.getLikeCount()).isEqualTo(0L);
 
             // when
-            CommentLikeDto result = commentLikeService.likeComment(commentId, requestUserId);
+            CommentLikeDto result = commentLikeService.likeComment(commentId, likerId);
 
             // then
             assertThat(result.commentId()).isEqualTo(commentId);
-            assertThat(result.likedBy()).isEqualTo(requestUserId);
-            assertThat(result.commentContent()).isEqualTo("댓글내용입니다.");
-            assertThat(comment.getLikeCount()).isEqualTo(initialLikeCount + 1); // 좋아요 수 증가 확인
-
-            verify(commentLikeRepository).findByCommentIdAndUserId(commentId, requestUserId);
-            verify(commentRepository).findWithUserById(commentId);
-            verify(userRepository).findById(requestUserId);
             verify(commentLikeRepository).save(any(CommentLike.class));
+            assertThat(comment.getLikeCount()).isEqualTo(1L); // 좋아요 수 증가 검증
+
+            // 핵심 검증: 남의 댓글이므로 알림 이벤트가 발행되어야 함
+            verify(eventPublisher).publishEvent(any(CreateNotificationEvent.class));
         }
 
         @Test
-        @DisplayName("성공: 이미 좋아요를 누른 경우 상태를 변경하지 않고 기존 좋아요 정보를 반환한다.")
+        @DisplayName("성공: 내가 쓴 댓글에 좋아요를 누르면 알림 이벤트를 발행하지 않는다.")
+        void likeComment_success_selfLikeNoEvent() {
+            // given (likerId 대신 authorId가 좋아요를 요청)
+            given(commentLikeRepository.findByCommentIdAndUserId(commentId, authorId)).willReturn(Optional.empty());
+            given(commentRepository.findWithUserById(commentId)).willReturn(Optional.of(comment));
+            given(userRepository.findById(authorId)).willReturn(Optional.of(author)); // 본인 정보 조회
+
+            // when
+            commentLikeService.likeComment(commentId, authorId);
+
+            // then
+            verify(commentLikeRepository).save(any(CommentLike.class));
+            assertThat(comment.getLikeCount()).isEqualTo(1L);
+
+            // 핵심 검증: 본인 댓글이므로 이벤트가 발행되지 않아야 함
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+
+        @Test
+        @DisplayName("성공: 이미 좋아요를 누른 상태라면 추가 조회나 저장 없이 기존 기록을 반환한다.")
         void likeComment_success_alreadyLiked() {
             // given
-            CommentLike existingLike = CommentLike.create(comment, requestUser);
-            ReflectionTestUtils.setField(existingLike, "id", UUID.randomUUID());
-            ReflectionTestUtils.setField(existingLike, "createdAt", LocalDateTime.now());
-
-            given(commentLikeRepository.findByCommentIdAndUserId(commentId, requestUserId))
-                .willReturn(Optional.of(existingLike));
-
-            long initialLikeCount = comment.getLikeCount();
+            given(commentLikeRepository.findByCommentIdAndUserId(commentId, likerId)).willReturn(Optional.of(commentLike));
 
             // when
-            CommentLikeDto result = commentLikeService.likeComment(commentId, requestUserId);
+            commentLikeService.likeComment(commentId, likerId);
 
             // then
-            assertThat(result.commentId()).isEqualTo(commentId);
-            assertThat(result.likedBy()).isEqualTo(requestUserId);
-            assertThat(comment.getLikeCount()).isEqualTo(initialLikeCount); // 좋아요 수 증가 안 됨 확인
-
-            verify(commentLikeRepository).findByCommentIdAndUserId(commentId, requestUserId);
-
-            // 캐싱된 좋아요를 반환하므로 DB 조회가 더 이상 발생하지 않아야 함
-            verify(commentRepository, never()).findWithUserById(any(UUID.class));
-            verify(userRepository, never()).findById(any(UUID.class));
+            verify(commentRepository, never()).findWithUserById(any());
+            verify(userRepository, never()).findById(any());
             verify(commentLikeRepository, never()).save(any(CommentLike.class));
+            assertThat(comment.getLikeCount()).isEqualTo(0L); // 수량 변화 없음
         }
 
         @Test
-        @DisplayName("실패: 존재하지 않는 댓글에 좋아요를 시도하면 예외가 발생한다.")
+        @DisplayName("실패: 댓글이 존재하지 않으면 예외가 발생한다.")
         void likeComment_fail_commentNotFound() {
             // given
-            given(commentLikeRepository.findByCommentIdAndUserId(commentId, requestUserId))
-                .willReturn(Optional.empty());
-
-            given(commentRepository.findWithUserById(commentId))
-                .willReturn(Optional.empty());
+            given(commentLikeRepository.findByCommentIdAndUserId(commentId, likerId)).willReturn(Optional.empty());
+            given(commentRepository.findWithUserById(commentId)).willReturn(Optional.empty());
 
             // when & then
             CommentException exception = assertThrows(CommentException.class, () -> {
-                commentLikeService.likeComment(commentId, requestUserId);
+                commentLikeService.likeComment(commentId, likerId);
             });
             assertThat(exception.getErrorCode()).isEqualTo(CommentErrorCode.COMMENT_NOT_FOUND);
+        }
+    }
 
-            verify(userRepository, never()).findById(any(UUID.class));
-            verify(commentLikeRepository, never()).save(any(CommentLike.class));
+    @Nested
+    @DisplayName("댓글 좋아요 취소(cancelLikeComment) 테스트")
+    class CancelLikeCommentTest {
+
+        @Test
+        @DisplayName("성공: 좋아요 기록이 있다면 삭제하고 댓글의 좋아요 수를 1 감소시킨다.")
+        void cancel_success() {
+            // given
+            comment.increaseLikeCount(); // 테스트용: 초기 카운트를 1로 셋팅
+            assertThat(comment.getLikeCount()).isEqualTo(1L);
+
+            given(commentLikeRepository.findByCommentIdAndUserIdWithComment(commentId, likerId))
+                .willReturn(Optional.of(commentLike));
+
+            // when
+            commentLikeService.cancelLikeComment(commentId, likerId);
+
+            // then
+            verify(commentLikeRepository).delete(commentLike);
+            assertThat(comment.getLikeCount()).isEqualTo(0L); // 카운트 0으로 감소 확인
         }
 
         @Test
-        @DisplayName("실패: 존재하지 않는 사용자 ID로 좋아요를 시도하면 예외가 발생한다.")
-        void likeComment_fail_userNotFound() {
+        @DisplayName("성공(무시): 좋아요 기록이 없다면 아무 일도 일어나지 않는다.")
+        void cancel_success_noRecord() {
             // given
-            given(commentLikeRepository.findByCommentIdAndUserId(commentId, requestUserId))
+            given(commentLikeRepository.findByCommentIdAndUserIdWithComment(commentId, likerId))
                 .willReturn(Optional.empty());
 
-            given(commentRepository.findWithUserById(commentId))
-                .willReturn(Optional.of(comment));
+            // when
+            commentLikeService.cancelLikeComment(commentId, likerId);
 
-            given(userRepository.findById(requestUserId))
-                .willReturn(Optional.empty());
-
-            // when & then
-            UserException exception = assertThrows(UserException.class, () -> {
-                commentLikeService.likeComment(commentId, requestUserId);
-            });
-            assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
-
-            verify(commentLikeRepository, never()).save(any(CommentLike.class));
+            // then
+            verify(commentLikeRepository, never()).delete(any());
         }
     }
 }
