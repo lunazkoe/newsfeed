@@ -4,7 +4,6 @@ import static com.lunazkoe.newsfeed.global.filter.MDCLoggingFilter.*;
 
 import com.lunazkoe.newsfeed.domain.commentlike.dto.CommentLikeDto;
 import com.lunazkoe.newsfeed.domain.commentlike.service.CommentLikeService;
-import com.lunazkoe.newsfeed.global.filter.MDCLoggingFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/comments")
-public class CommentController {
+public class CommentLikeController {
 
     private CommentLikeService commentLikeService;
 
