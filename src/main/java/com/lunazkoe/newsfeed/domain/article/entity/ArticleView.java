@@ -1,6 +1,5 @@
-package com.lunazkoe.newsfeed.domain.articleview.entity;
+package com.lunazkoe.newsfeed.domain.article.entity;
 
-import com.lunazkoe.newsfeed.domain.article.entity.Article;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
