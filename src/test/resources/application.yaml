@@ -4,6 +4,11 @@ spring:
   profiles:
     active: test
 
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
 logging:
   level:
     root: info
