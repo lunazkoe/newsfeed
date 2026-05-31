@@ -10,7 +10,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig {
 
-    @Bean(name = "notificationTaskExecutor")
+    public static final String NotificationAsyncName = "notificationTaskExecutor";
+
+    @Bean(name = NotificationAsyncName)
     public Executor notificationTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(5);                 // 기본적으로 대기하고 있는 스레드 수

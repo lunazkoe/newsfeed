@@ -1,6 +1,9 @@
 package com.lunazkoe.newsfeed.domain.notification.listener;
 
+import static com.lunazkoe.newsfeed.global.config.AsyncConfig.*;
+
 import com.lunazkoe.newsfeed.domain.notification.service.NotificationService;
+import com.lunazkoe.newsfeed.global.config.AsyncConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -15,7 +18,7 @@ public class NotificationEventListener {
 
     private final NotificationService notificationService;
 
-    @Async("notificationTaskExecutor")
+    @Async(NotificationAsyncName)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleNotificationCreateEvent(CreateNotificationEvent event) {
         log.info("[Async Event Received] 알림 생성 시작. 수신자 ID: {}, 리소스: {}", event.receiverId(), event.resourceType());

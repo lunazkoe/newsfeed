@@ -57,7 +57,7 @@ public class CommentLikeService {
         // 댓글 좋아요 수 증가
         foundComment.increaseLikeCount();
 
-        // 좋아요 알림 생성
+        // **좋아요 알림 생성**
         // - 내가 쓴 댓글에 좋아요를 누를 경우 알림 생성 X
         if (!foundComment.getUser().getId().equals(requestUserId)) {
             eventPublisher.publishEvent(
