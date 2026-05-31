@@ -7,6 +7,7 @@ import com.lunazkoe.newsfeed.domain.comment.repository.CommentRepository;
 import com.lunazkoe.newsfeed.domain.commentlike.dto.CommentLikeDto;
 import com.lunazkoe.newsfeed.domain.commentlike.entity.CommentLike;
 import com.lunazkoe.newsfeed.domain.commentlike.repository.CommentLikeRepository;
+import com.lunazkoe.newsfeed.domain.notification.listener.CreateNotificationEvent;
 import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ public class CommentLikeService {
     private final CommentLikeRepository commentLikeRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 관심사 댓글 좋아요
@@ -53,6 +56,15 @@ public class CommentLikeService {
 
         // 좋아요 수 증가
         foundComment.increaseLikeCount();
+
+        // 좋아요 알림 생성
+        // - 내가 쓴 댓글에 좋아요를 누를 경우 알림 생성 X
+        if (!foundComment.getUser().getId().equals(requestUserId)) {
+            eventPublisher.publishEvent(
+                CreateNotificationEvent.createByCommentLike(foundComment, foundUser));
+            log.info("[Event Published] NotificationCreateEvent for Comment Like. receiverId: {}, commentId: {}",
+                foundComment.getUser().getId(), foundComment.getId());
+        }
 
         log.info("관심사 댓글 좋아요 요청 성공. CommentId: {}", foundComment.getId());
         return CommentLikeDto.from(newCommentLike);
