@@ -31,7 +31,7 @@ public class Interest extends BaseTimeEntity {
     @OneToMany(mappedBy = "interest", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InterestKeyword> keywords = new ArrayList<>();
 
-    private long subscriptionCount = 0L;
+    private long subscriberCount = 0L;
 
     private Interest(String name, List<String> keywords) {
         this.name = name;
@@ -44,6 +44,12 @@ public class Interest extends BaseTimeEntity {
     public void addKeyword(String keyword) {
         InterestKeyword interestKeyword = new InterestKeyword(this, keyword);
         this.keywords.add(interestKeyword);
+    }
+
+    public List<String> getKeywords() {
+        return this.keywords.stream()
+            .map(InterestKeyword::getKeyword)
+            .toList();
     }
 
     // == 생성 메서드 ==
