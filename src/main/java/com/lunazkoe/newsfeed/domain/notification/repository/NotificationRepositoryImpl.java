@@ -30,35 +30,32 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom{
                 notification.confirmed.eq(false),
                 cursorCondition(condition.cursor(), condition.after())
             )
-            .orderBy(notification.createdAt.desc(), notification.id.desc())
+            .orderBy(notification.createdAt.asc())
             .limit(condition.limit() + 1)
             .fetch();
 
         boolean hasNext = notifications.size() > condition.limit();
-        UUID nextCursor = null;
-        String nextAfter = null;
+        String nextCursor = null;
+        LocalDateTime nextAfter = null;
 
         if (hasNext) {
             notifications.remove(notifications.size() - 1);
 
             Notification lastNotification = notifications.get(notifications.size() - 1);
-            nextCursor = lastNotification.getId();
-            nextAfter = lastNotification.getCreatedAt().toString();
+            nextCursor = lastNotification.getCreatedAt().toString();
+            nextAfter = lastNotification.getCreatedAt();
         }
 
-        Long totalElementCount = null;
-        if (condition.cursor() == null) {
-            totalElementCount = Optional.ofNullable(
-                queryFactory
-                    .select(notification.count())
-                    .from(notification)
-                    .where(
-                        notification.user.id.eq(requestUserId),
-                        notification.confirmed.eq(false)
-                    )
-                    .fetchOne()
-            ).orElse(0L);
-        }
+        Long totalElementCount = Optional.ofNullable(
+            queryFactory
+                .select(notification.count())
+                .from(notification)
+                .where(
+                    notification.user.id.eq(requestUserId),
+                    notification.confirmed.eq(false)
+                )
+                .fetchOne()
+        ).orElse(0L);
 
         return new CursorPageResponse<>(
             notifications,
@@ -70,12 +67,11 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom{
         );
     }
 
-    private BooleanExpression cursorCondition(UUID cursor, LocalDateTime after) {
+    private BooleanExpression cursorCondition(LocalDateTime cursor, LocalDateTime after) {
         if (cursor == null || after == null) {
             return null;
         }
 
-        return notification.createdAt.lt(after)
-            .or(notification.createdAt.eq(after).and(notification.id.lt(cursor)));
+        return notification.createdAt.gt(cursor);
     }
 }

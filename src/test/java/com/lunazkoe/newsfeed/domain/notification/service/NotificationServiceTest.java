@@ -76,12 +76,14 @@ class NotificationServiceTest {
             // given
             NotificationSearchCondition condition = new NotificationSearchCondition(null, null, 10);
 
+            LocalDateTime createdAt = LocalDateTime.now();
+
             // 레포지토리가 반환할 가짜(Mock) 응답 객체 생성
             List<Notification> notifications = List.of(notification);
             CursorPageResponse<Notification> mockPageResponse = new CursorPageResponse<>(
                 notifications,
-                notificationId, // nextCursor
-                LocalDateTime.now().toString(), // nextAfter
+                createdAt.toString(), // nextCursor
+                createdAt, // nextAfter
                 1, // size
                 1L, // totalElements
                 false // hasNext

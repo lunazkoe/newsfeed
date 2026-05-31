@@ -8,9 +8,9 @@ import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 
 public record NotificationSearchCondition(
-    UUID cursor,
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    LocalDateTime cursor,
 
-    // 쿼리 파라미터로 들어오는 날짜 문자열을 자동 파싱 (예: 2026-06-01T12:49:14)
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     LocalDateTime after,
 

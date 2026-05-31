@@ -1,10 +1,13 @@
 package com.lunazkoe.newsfeed.domain.interest.dto;
 
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.util.StringUtils;
 
 @Schema(description = "관심사 목록 조회용")
 public record InterestSearchCondition(
@@ -20,17 +23,22 @@ public record InterestSearchCondition(
     String direction,
 
     @Schema(description = "커서 값 (마지막으로 조회된 Interest ID)")
-    @Pattern(regexp = "(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        message = "유효하지 않은 커서 형식입니다.")
-    String cursor,
+    UUID cursor,
 
-    @Schema(description = "보조 커서 값 (정렬 기준에 따른 값)")
-    String after,
+    @Schema(description = "보조 커서 값 (마지막으로 조회된 데이터의 생성일시)")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    LocalDateTime after,
 
     @Schema(description = "커서 페이지 크기", example = "50")
     @Min(value = 1, message = "조회 개수는 1 이상이어야 합니다.")
     @Max(value = 100, message = "한 번에 조회할 수 있는 최대 개수는 100개입니다.")
     Integer limit
 ) {
-
+    // 아무 값도 안 들어왔을 때를 대비한 기본값 세팅
+    public InterestSearchCondition {
+        if (!StringUtils.hasText(orderBy)) orderBy = "subscriberCount";
+        if (!StringUtils.hasText(direction)) direction = "DESC";
+        direction = direction.toUpperCase();
+        if (limit == null) limit = 50;
+    }
 }

@@ -1,12 +1,12 @@
 package com.lunazkoe.newsfeed.global.dto;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 public record CursorPageResponse<T>(
     List<T> content,
-    UUID nextCursor,
-    String nextAfter,
+    String nextCursor,
+    LocalDateTime nextAfter,
     int size,
     Long totalElements,
     Boolean hasNext
