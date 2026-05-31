@@ -1,5 +1,7 @@
 package com.lunazkoe.newsfeed.domain.notification.service;
 
+import com.lunazkoe.newsfeed.domain.notification.dto.NotificationDto;
+import com.lunazkoe.newsfeed.domain.notification.dto.NotificationSearchCondition;
 import com.lunazkoe.newsfeed.domain.notification.entity.Notification;
 import com.lunazkoe.newsfeed.domain.notification.exception.NotificationErrorCode;
 import com.lunazkoe.newsfeed.domain.notification.exception.NotificationException;
@@ -9,7 +11,9 @@ import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
+import com.lunazkoe.newsfeed.global.dto.CursorPageResponse;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +32,22 @@ public class NotificationService {
     /**
      * 알림 목록 조회
      */
+    public CursorPageResponse<NotificationDto> getNotifications(NotificationSearchCondition condition, UUID requestUserId) {
+        CursorPageResponse<Notification> pageResponse = notificationRepository.searchNotifications(condition, requestUserId);
+        List<NotificationDto> notifications = pageResponse.content().stream()
+            .map(NotificationDto::from)
+            .toList();
+
+        log.info("미확인 알림 목록 조회 요청 성공.");
+        return new CursorPageResponse<>(
+            notifications,
+            pageResponse.nextCursor(),
+            pageResponse.nextAfter(),
+            pageResponse.size(),
+            pageResponse.totalElements(),
+            pageResponse.hasNext()
+        );
+    }
 
     /**
      * 전체 알림 확인

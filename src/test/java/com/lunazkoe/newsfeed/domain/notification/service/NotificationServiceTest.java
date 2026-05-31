@@ -8,6 +8,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.lunazkoe.newsfeed.domain.notification.dto.NotificationDto;
+import com.lunazkoe.newsfeed.domain.notification.dto.NotificationSearchCondition;
 import com.lunazkoe.newsfeed.domain.notification.entity.Notification;
 import com.lunazkoe.newsfeed.domain.notification.entity.NotificationResourceType;
 import com.lunazkoe.newsfeed.domain.notification.exception.NotificationErrorCode;
@@ -18,7 +20,9 @@ import com.lunazkoe.newsfeed.domain.user.entity.User;
 import com.lunazkoe.newsfeed.domain.user.exception.UserErrorCode;
 import com.lunazkoe.newsfeed.domain.user.exception.UserException;
 import com.lunazkoe.newsfeed.domain.user.repository.UserRepository;
+import com.lunazkoe.newsfeed.global.dto.CursorPageResponse;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +64,49 @@ class NotificationServiceTest {
         notification = Notification.create(user, "테스트 알림입니다.", NotificationResourceType.COMMENT, UUID.randomUUID());
         ReflectionTestUtils.setField(notification, "id", notificationId);
         ReflectionTestUtils.setField(notification, "confirmed", false);
+    }
+
+    @Nested
+    @DisplayName("알림 목록 조회(getNotifications) 테스트")
+    class GetNotificationsTest {
+
+        @Test
+        @DisplayName("성공: 조건에 맞는 알림 목록을 조회하고 DTO로 변환하여 반환한다.")
+        void getNotifications_success() {
+            // given
+            NotificationSearchCondition condition = new NotificationSearchCondition(null, null, 10);
+
+            // 레포지토리가 반환할 가짜(Mock) 응답 객체 생성
+            List<Notification> notifications = List.of(notification);
+            CursorPageResponse<Notification> mockPageResponse = new CursorPageResponse<>(
+                notifications,
+                notificationId, // nextCursor
+                LocalDateTime.now().toString(), // nextAfter
+                1, // size
+                1L, // totalElements
+                false // hasNext
+            );
+
+            given(notificationRepository.searchNotifications(condition, userId))
+                .willReturn(mockPageResponse);
+
+            // when
+            CursorPageResponse<NotificationDto> result = notificationService.getNotifications(condition, userId);
+
+            // then
+            // 1. 레포지토리 메서드가 제대로 호출되었는지 검증
+            verify(notificationRepository).searchNotifications(condition, userId);
+
+            // 2. DTO 변환 및 값 매핑이 정상적으로 이루어졌는지 검증
+            assertThat(result.content()).hasSize(1);
+            assertThat(result.content().get(0).id()).isEqualTo(notification.getId());
+            assertThat(result.content().get(0).content()).isEqualTo(notification.getContent());
+
+            // 3. 페이지네이션 메타데이터가 그대로 잘 전달되었는지 검증
+            assertThat(result.nextCursor()).isEqualTo(mockPageResponse.nextCursor());
+            assertThat(result.totalElements()).isEqualTo(mockPageResponse.totalElements());
+            assertThat(result.hasNext()).isFalse();
+        }
     }
 
     @Nested
