@@ -67,4 +67,22 @@ public class Interest extends BaseTimeEntity {
             this.addKeyword(keyword);
         }
     }
+
+    /**
+     * 구독자 수 증가
+     */
+    public void increaseSubscriberCount() {
+        if (this.subscriberCount < Long.MAX_VALUE) {
+            this.subscriberCount++;
+        }
+    }
+
+    /**
+     * 구독자 수 감소
+     */
+    public void decreaseSubscriberCount() {
+        if (this.subscriberCount > 0) {
+            this.subscriberCount--;
+        }
+    }
 }

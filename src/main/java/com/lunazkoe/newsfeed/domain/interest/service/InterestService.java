@@ -2,11 +2,14 @@ package com.lunazkoe.newsfeed.domain.interest.service;
 
 import com.lunazkoe.newsfeed.domain.interest.dto.InterestDto;
 import com.lunazkoe.newsfeed.domain.interest.dto.InterestRegisterRequest;
+import com.lunazkoe.newsfeed.domain.interest.dto.InterestUpdateRequest;
 import com.lunazkoe.newsfeed.domain.interest.entity.Interest;
 import com.lunazkoe.newsfeed.domain.interest.exception.InterestErrorCode;
 import com.lunazkoe.newsfeed.domain.interest.exception.InterestException;
 import com.lunazkoe.newsfeed.domain.interest.repository.InterestRepository;
+import com.lunazkoe.newsfeed.domain.subscription.repository.SubscriptionRepository;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InterestService {
 
     private final InterestRepository interestRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     /**
      * 관심사 목록 조회
@@ -50,8 +54,32 @@ public class InterestService {
     /**
      * 관심사 물리 삭제
      */
+    @Transactional
+    public void hardDelete(UUID interestId) {
+        Interest foundInterest = interestRepository.findById(interestId)
+            .orElseThrow(() -> new InterestException(InterestErrorCode.INTEREST_NOT_FOUND));
+
+        // 관심사 관련 Subscription 삭제
+        subscriptionRepository.deleteByInterestId(interestId);
+
+        // 관심사 삭제
+        interestRepository.delete(foundInterest);
+        log.info("관심사 물리 삭제 요청 완료. InterestId: {}", foundInterest.getId());
+    }
 
     /**
      * 관심사 정보 수정
      */
+    @Transactional
+    public InterestDto updateKeywords(UUID interestId, InterestUpdateRequest request) {
+        // 관심사 찾기
+        Interest foundInterest = interestRepository.findById(interestId)
+            .orElseThrow(() -> new InterestException(InterestErrorCode.INTEREST_NOT_FOUND));
+
+        // 키워드 수정
+        foundInterest.updateKeywords(request.keywords());
+
+        log.info("관심사 정보(키워드) 수정 완료. InterestId: {}", foundInterest.getId());
+        return InterestDto.from(foundInterest, null);
+    }
 }
