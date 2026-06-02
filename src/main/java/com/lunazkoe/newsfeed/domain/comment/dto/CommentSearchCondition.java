@@ -1,20 +1,19 @@
-package com.lunazkoe.newsfeed.domain.interest.dto;
+package com.lunazkoe.newsfeed.domain.comment.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.util.StringUtils;
 
-@Schema(description = "관심사 목록 조회용")
-public record InterestSearchCondition(
-    @Schema(description = "검색어(관심사 이름)", example = "스포츠")
-    String keyword,
+public record CommentSearchCondition(
+    @Schema(description = "기사 ID (특정 기사의 댓글만 조회할 경우)", example = "123e4567-e89b-12d3-a456-426614174000")
+    UUID articleId,
 
-    @Schema(description = "정렬 속성 (name, subscriberCount)", example = "subscriberCount")
-    @Pattern(regexp = "^(name|subscriberCount)$", message = "정렬 기준은 name 또는 subscriberCount만 가능합니다.")
+    @Schema(description = "정렬 속성 (createdAt, likeCount)", example = "createdAt")
+    @Pattern(regexp = "^(createdAt|likeCount)$", message = "정렬 기준은 createdAt 또는 likeCount만 가능합니다.")
     String orderBy,
 
     @Schema(description = "정렬 방향 (ASC, DESC)", example = "DESC")
@@ -33,11 +32,5 @@ public record InterestSearchCondition(
     @Max(value = 100, message = "한 번에 조회할 수 있는 최대 개수는 100개입니다.")
     Integer limit
 ) {
-    // 아무 값도 안 들어왔을 때를 대비한 기본값 세팅
-    public InterestSearchCondition {
-        if (!StringUtils.hasText(orderBy)) orderBy = "subscriberCount";
-        if (!StringUtils.hasText(direction)) direction = "DESC";
-        direction = direction.toUpperCase();
-        if (limit == null) limit = 50;
-    }
+
 }

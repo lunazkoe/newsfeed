@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface CommentRepository extends JpaRepository<Comment, UUID> {
+public interface CommentRepository extends JpaRepository<Comment, UUID>, CommentRepositoryCustom {
 
     @EntityGraph(attributePaths = {"user"})
     Optional<Comment> findWithUserById(UUID commentId);
